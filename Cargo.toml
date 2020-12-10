@@ -1,0 +1,11 @@
+[package]
+name = "smbus-slave-state-machine"
+version = "0.1.0"
+authors = ["Rafael Bachmann <mediumendian@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies.num_enum]
+version = "0.5.1"
+default-features = false
