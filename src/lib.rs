@@ -52,9 +52,9 @@ pub enum WriteWordDataCommand {
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum ReadByteDataCommand {
-    GetByteA= 0x7,
-    GetByteB= 0x8,
-    GetByteC= 0x9,
+    GetByteA = 0x7,
+    GetByteB = 0x8,
+    GetByteC = 0x9,
 }
 
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
@@ -107,7 +107,11 @@ pub enum SMBusProtoError {
 }
 
 impl State {
-    fn handle_i2c_event(&mut self, event: &mut I2CEvent, bus_state: &mut SMBusState) -> Result<(), SMBusProtoError> {
+    fn handle_i2c_event(
+        &mut self,
+        event: &mut I2CEvent,
+        bus_state: &mut SMBusState,
+    ) -> Result<(), SMBusProtoError> {
         match event {
             I2CEvent::Addr { direction } => bus_state.direction = Some(*direction),
             I2CEvent::ReceivedByte { byte } => {
@@ -126,27 +130,25 @@ impl State {
                         }
                     } else if let Ok(command) = WriteWordDataCommand::try_from(first_byte) {
                         match command {
-                            WriteWordDataCommand::SetByteAB => {
-                                match bus_state.param_idx {
-                                    0 => self.byte_a = *byte,
-                                    1 => self.byte_b = *byte,
-                                    _ => return Err(SMBusProtoError::Unknown)
-                                }
-                            }
+                            WriteWordDataCommand::SetByteAB => match bus_state.param_idx {
+                                0 => self.byte_a = *byte,
+                                1 => self.byte_b = *byte,
+                                _ => return Err(SMBusProtoError::Unknown),
+                            },
                         }
                     } else if let Ok(command) = WriteBlockDataCommand::try_from(first_byte) {
                         match command {
-                            WriteBlockDataCommand::SetBlockABC => {
-                                match bus_state.param_idx {
-                                    0 => if *byte != 3 {
-                                            return Err(SMBusProtoError::Unknown)
-                                        }
-                                    1 => self.byte_a = *byte,
-                                    2 => self.byte_b = *byte,
-                                    3 => self.byte_c = *byte,
-                                    _ => return Err(SMBusProtoError::Unknown),
+                            WriteBlockDataCommand::SetBlockABC => match bus_state.param_idx {
+                                0 => {
+                                    if *byte != 3 {
+                                        return Err(SMBusProtoError::Unknown);
+                                    }
                                 }
-                            }
+                                1 => self.byte_a = *byte,
+                                2 => self.byte_b = *byte,
+                                3 => self.byte_c = *byte,
+                                _ => return Err(SMBusProtoError::Unknown),
+                            },
                         }
                     }
                     bus_state.param_idx += 1;
@@ -154,57 +156,53 @@ impl State {
                     bus_state.first_byte = Some(*byte);
                 }
             }
-            I2CEvent::RequestedByte { byte } => {
-                match bus_state.first_byte {
-                    None => {
-                        if bus_state.direction == Some(Direction::SlaveToMaster) {
-                            **byte = self.some_byte;
-                        } else {
-                            return Err(SMBusProtoError::Unknown)
-                        }
-                    }
-                    Some(x) => {
-                        if let Ok(command) = ReadByteDataCommand::try_from(x) {
-                            match command {
-                                ReadByteDataCommand::GetByteA => {
-                                    **byte = self.byte_a;
-                                }
-                                ReadByteDataCommand::GetByteB => {
-                                **byte = self.byte_b;
-                                }
-                                ReadByteDataCommand::GetByteC => {
-                                    **byte = self.byte_c;
-                                }
-                            }
-                        } else if let Ok(command) = ReadWordDataCommand::try_from(x) {
-                            match command {
-                                ReadWordDataCommand::GetWordAB => {
-                                    if bus_state.param_idx == 0 {
-                                        **byte = self.byte_a;
-                                    } else if bus_state.param_idx == 1 {
-                                        **byte = self.byte_b;
-                                    }
-                                }
-                            }
-                        } else if let Ok(command) = ReadBlockDataCommand::try_from(x) {
-                            match command {
-                                ReadBlockDataCommand::GetBlockABC => {
-                                    match bus_state.param_idx {
-                                        0 => **byte = 3,
-                                        1 => **byte = self.byte_a,
-                                        2 => **byte = self.byte_b,
-                                        3 => **byte = self.byte_c,
-                                        _ => return Err(SMBusProtoError::Unknown),
-                                    }
-                                }
-                            }
-                        } else {
-                            return Err(SMBusProtoError::Unknown);
-                        }
-                        bus_state.param_idx += 1;
+            I2CEvent::RequestedByte { byte } => match bus_state.first_byte {
+                None => {
+                    if bus_state.direction == Some(Direction::SlaveToMaster) {
+                        **byte = self.some_byte;
+                    } else {
+                        return Err(SMBusProtoError::Unknown);
                     }
                 }
-            }
+                Some(first_byte) => {
+                    if let Ok(command) = ReadByteDataCommand::try_from(first_byte) {
+                        match command {
+                            ReadByteDataCommand::GetByteA => {
+                                **byte = self.byte_a;
+                            }
+                            ReadByteDataCommand::GetByteB => {
+                                **byte = self.byte_b;
+                            }
+                            ReadByteDataCommand::GetByteC => {
+                                **byte = self.byte_c;
+                            }
+                        }
+                    } else if let Ok(command) = ReadWordDataCommand::try_from(first_byte) {
+                        match command {
+                            ReadWordDataCommand::GetWordAB => {
+                                if bus_state.param_idx == 0 {
+                                    **byte = self.byte_a;
+                                } else if bus_state.param_idx == 1 {
+                                    **byte = self.byte_b;
+                                }
+                            }
+                        }
+                    } else if let Ok(command) = ReadBlockDataCommand::try_from(first_byte) {
+                        match command {
+                            ReadBlockDataCommand::GetBlockABC => match bus_state.param_idx {
+                                0 => **byte = 3,
+                                1 => **byte = self.byte_a,
+                                2 => **byte = self.byte_b,
+                                3 => **byte = self.byte_c,
+                                _ => return Err(SMBusProtoError::Unknown),
+                            },
+                        }
+                    } else {
+                        return Err(SMBusProtoError::Unknown);
+                    }
+                    bus_state.param_idx += 1;
+                }
+            },
             I2CEvent::Stop => {
                 if let Some(write_byte) = bus_state.first_byte {
                     if let Ok(command) = WriteByteCommand::try_from(write_byte) {
@@ -214,7 +212,7 @@ impl State {
                             }
                             WriteByteCommand::IncrementByte => {
                                 self.some_byte += 1;
-                            },
+                            }
                         }
                     }
                 }
@@ -223,7 +221,7 @@ impl State {
                 bus_state.param_idx = 0;
             }
         };
-        return Ok(())
+        return Ok(());
     }
 }
 
@@ -238,7 +236,9 @@ mod tests {
 
         state.some_byte = 0xa2;
 
-        let mut event = I2CEvent::Addr { direction: Direction::SlaveToMaster };
+        let mut event = I2CEvent::Addr {
+            direction: Direction::SlaveToMaster,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
         let mut data: u8 = 0;
@@ -253,10 +253,14 @@ mod tests {
         let mut state = State::default();
         let mut bus_state = SMBusState::default();
 
-        let mut event = I2CEvent::Addr { direction: Direction::MasterToSlave };
+        let mut event = I2CEvent::Addr {
+            direction: Direction::MasterToSlave,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-        event = I2CEvent::ReceivedByte { byte: WriteByteCommand::IncrementByte as u8 };
+        event = I2CEvent::ReceivedByte {
+            byte: WriteByteCommand::IncrementByte as u8,
+        };
         let mut stop = I2CEvent::Stop;
 
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
@@ -267,7 +271,9 @@ mod tests {
 
         assert_eq!(2, state.some_byte);
 
-        event = I2CEvent::ReceivedByte { byte: WriteByteCommand::ResetByte as u8 };
+        event = I2CEvent::ReceivedByte {
+            byte: WriteByteCommand::ResetByte as u8,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
         state.handle_i2c_event(&mut stop, &mut bus_state).unwrap();
@@ -280,10 +286,14 @@ mod tests {
         let mut state = State::default();
         let mut bus_state = SMBusState::default();
 
-        let mut event = I2CEvent::Addr { direction: Direction::MasterToSlave };
+        let mut event = I2CEvent::Addr {
+            direction: Direction::MasterToSlave,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-        event = I2CEvent::ReceivedByte { byte: WriteByteDataCommand::SetByteA as u8 };
+        event = I2CEvent::ReceivedByte {
+            byte: WriteByteDataCommand::SetByteA as u8,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
         event = I2CEvent::ReceivedByte { byte: 0x42 };
@@ -299,14 +309,22 @@ mod tests {
 
         state.byte_b = 0x32;
 
-        let mut event = I2CEvent::Addr { direction: Direction::MasterToSlave };
+        let mut event = I2CEvent::Addr {
+            direction: Direction::MasterToSlave,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-        event = I2CEvent::ReceivedByte { byte: ReadByteDataCommand::GetByteB as u8 };
+        event = I2CEvent::ReceivedByte {
+            byte: ReadByteDataCommand::GetByteB as u8,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-        let mut restart = I2CEvent::Addr { direction: Direction::SlaveToMaster };
-        state.handle_i2c_event(&mut restart, &mut bus_state).unwrap();
+        let mut restart = I2CEvent::Addr {
+            direction: Direction::SlaveToMaster,
+        };
+        state
+            .handle_i2c_event(&mut restart, &mut bus_state)
+            .unwrap();
 
         let mut data: u8 = 0;
         event = I2CEvent::RequestedByte { byte: &mut data };
@@ -323,14 +341,22 @@ mod tests {
         state.byte_a = 0x42;
         state.byte_b = 0x32;
 
-        let mut event = I2CEvent::Addr { direction: Direction::MasterToSlave };
+        let mut event = I2CEvent::Addr {
+            direction: Direction::MasterToSlave,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-        event = I2CEvent::ReceivedByte { byte: ReadWordDataCommand::GetWordAB as u8 };
+        event = I2CEvent::ReceivedByte {
+            byte: ReadWordDataCommand::GetWordAB as u8,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-        let mut restart = I2CEvent::Addr { direction: Direction::SlaveToMaster };
-        state.handle_i2c_event(&mut restart, &mut bus_state).unwrap();
+        let mut restart = I2CEvent::Addr {
+            direction: Direction::SlaveToMaster,
+        };
+        state
+            .handle_i2c_event(&mut restart, &mut bus_state)
+            .unwrap();
 
         let mut data1: u8 = 0;
         event = I2CEvent::RequestedByte { byte: &mut data1 };
@@ -349,10 +375,14 @@ mod tests {
         let mut state = State::default();
         let mut bus_state = SMBusState::default();
 
-        let mut event = I2CEvent::Addr { direction: Direction::MasterToSlave };
+        let mut event = I2CEvent::Addr {
+            direction: Direction::MasterToSlave,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-        event = I2CEvent::ReceivedByte { byte: WriteBlockDataCommand::SetBlockABC as u8 };
+        event = I2CEvent::ReceivedByte {
+            byte: WriteBlockDataCommand::SetBlockABC as u8,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
         event = I2CEvent::ReceivedByte { byte: 3 };
@@ -381,14 +411,22 @@ mod tests {
         state.byte_b = 0xb2;
         state.byte_c = 0xc2;
 
-        let mut event = I2CEvent::Addr { direction: Direction::MasterToSlave };
+        let mut event = I2CEvent::Addr {
+            direction: Direction::MasterToSlave,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-        event = I2CEvent::ReceivedByte { byte: ReadBlockDataCommand::GetBlockABC as u8 };
+        event = I2CEvent::ReceivedByte {
+            byte: ReadBlockDataCommand::GetBlockABC as u8,
+        };
         state.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-        let mut restart = I2CEvent::Addr { direction: Direction::SlaveToMaster };
-        state.handle_i2c_event(&mut restart, &mut bus_state).unwrap();
+        let mut restart = I2CEvent::Addr {
+            direction: Direction::SlaveToMaster,
+        };
+        state
+            .handle_i2c_event(&mut restart, &mut bus_state)
+            .unwrap();
 
         let mut count: u8 = 0;
         event = I2CEvent::RequestedByte { byte: &mut count };
