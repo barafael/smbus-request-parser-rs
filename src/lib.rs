@@ -104,8 +104,14 @@ pub struct SMBusState {
 }
 
 #[derive(Debug)]
-pub enum SMBusProtoError {
-    Unknown,
+pub enum SMBusProtocolError {
+    WrongDirection(Option<Direction>),
+    IncorrectWriteBlockSize(u8),
+    IncorrectReadBlockSize(u8),
+    InvalidWriteBound(u8),
+    InvalidReadBound(u8),
+    InvalidReadRegister(u8),
+    InvalidWriteRegister(u8),
 }
 
 impl State {
@@ -113,7 +119,7 @@ impl State {
         &mut self,
         event: &mut I2CEvent,
         bus_state: &mut SMBusState,
-    ) -> Result<(), SMBusProtoError> {
+    ) -> Result<(), SMBusProtocolError> {
         match event {
             I2CEvent::Addr { direction } => bus_state.direction = Some(*direction),
             I2CEvent::ReceivedByte { byte } => {
@@ -140,7 +146,7 @@ impl State {
                             WriteWordDataCommand::SetByteAB => match bus_state.index {
                                 0 => self.byte_a = *byte,
                                 1 => self.byte_b = *byte,
-                                _ => return Err(SMBusProtoError::Unknown),
+                                n => return Err(SMBusProtocolError::InvalidWriteBound(n)),
                             },
                         }
                     } else if let Ok(command) =
@@ -150,13 +156,13 @@ impl State {
                             WriteBlockDataCommand::SetBlockABC => match bus_state.index {
                                 1 => {
                                     if *byte != 3 {
-                                        return Err(SMBusProtoError::Unknown);
+                                        return Err(SMBusProtocolError::IncorrectWriteBlockSize(*byte));
                                     }
                                 }
                                 2 => self.byte_a = *byte,
                                 3 => self.byte_b = *byte,
                                 4 => self.byte_c = *byte,
-                                _ => return Err(SMBusProtoError::Unknown),
+                                n => return Err(SMBusProtocolError::InvalidWriteBound(n)),
                             },
                         }
                     }
@@ -165,10 +171,10 @@ impl State {
             }
             I2CEvent::RequestedByte { byte } => match bus_state.index {
                 0 => {
-                    if bus_state.direction == Some(Direction::SlaveToMaster) {
+                    if let Some(Direction::SlaveToMaster) = bus_state.direction {
                         **byte = self.some_byte;
                     } else {
-                        return Err(SMBusProtoError::Unknown);
+                        return Err(SMBusProtocolError::WrongDirection(bus_state.direction));
                     }
                 }
                 _ => {
@@ -202,11 +208,11 @@ impl State {
                                 2 => **byte = self.byte_a,
                                 3 => **byte = self.byte_b,
                                 4 => **byte = self.byte_c,
-                                _ => return Err(SMBusProtoError::Unknown),
+                                n => return Err(SMBusProtocolError::InvalidReadBound(n)),
                             },
                         }
                     } else {
-                        return Err(SMBusProtoError::Unknown);
+                        return Err(SMBusProtocolError::InvalidReadRegister(first_byte));
                     }
                     bus_state.index += 1;
                 }
