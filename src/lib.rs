@@ -8,22 +8,8 @@ mod tests;
 use core::convert::TryFrom;
 use num_enum::TryFromPrimitive;
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum SMBCommandType {
-    QuickCommandRead,
-    QuickCommandWrite,
-    ReadByte,
-    SendByte,
-    WriteByteData,
-    WriteWordData,
-    WriteBlockData,
-    ReadByteData,
-    ReadWordData,
-    ReadBlockData,
-}
-
 #[derive(Debug, Default)]
-struct State {
+pub struct State {
     byte_a: u8,
     byte_b: u8,
     byte_c: u8,
