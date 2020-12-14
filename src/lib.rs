@@ -25,12 +25,6 @@ pub enum WriteByteCommand {
 
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
 #[repr(u8)]
-pub enum ReadByteCommand {
-    GetByte = 0x2,
-}
-
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
-#[repr(u8)]
 pub enum WriteByteDataCommand {
     SetByteA = 0x3,
     SetByteB = 0x4,
@@ -40,7 +34,7 @@ pub enum WriteByteDataCommand {
 #[repr(u8)]
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
 pub enum WriteWordDataCommand {
-    SetByteAB = 0x6,
+    SetWordAB = 0x6,
 }
 
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
@@ -89,13 +83,13 @@ pub struct SMBusState {
     direction: Option<Direction>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum SMBusProtocolError {
     WrongDirection(Option<Direction>),
-    IncorrectWriteBlockSize(u8),
-    IncorrectReadBlockSize(u8),
     InvalidWriteBound(u8),
     InvalidReadBound(u8),
+    InvalidWriteBlockSize(u8),
+    InvalidReadBlockSize(u8),
     InvalidReadRegister(u8),
     InvalidWriteRegister(u8),
 }
@@ -109,50 +103,7 @@ impl State {
         match event {
             I2CEvent::Addr { direction } => bus_state.direction = Some(*direction),
             I2CEvent::ReceivedByte { byte } => {
-                if bus_state.index == 0 {
-                    bus_state.received_data[0] = *byte;
-                } else {
-                    if let Ok(command) = WriteByteDataCommand::try_from(bus_state.received_data[0])
-                    {
-                        match command {
-                            WriteByteDataCommand::SetByteA => {
-                                self.byte_a = *byte;
-                            }
-                            WriteByteDataCommand::SetByteB => {
-                                self.byte_b = *byte;
-                            }
-                            WriteByteDataCommand::SetByteC => {
-                                self.byte_c = *byte;
-                            }
-                        }
-                    } else if let Ok(command) =
-                        WriteWordDataCommand::try_from(bus_state.received_data[0])
-                    {
-                        match command {
-                            WriteWordDataCommand::SetByteAB => match bus_state.index {
-                                0 => self.byte_a = *byte,
-                                1 => self.byte_b = *byte,
-                                n => return Err(SMBusProtocolError::InvalidWriteBound(n)),
-                            },
-                        }
-                    } else if let Ok(command) =
-                        WriteBlockDataCommand::try_from(bus_state.received_data[0])
-                    {
-                        match command {
-                            WriteBlockDataCommand::SetBlockABC => match bus_state.index {
-                                1 => {
-                                    if *byte != 3 {
-                                        return Err(SMBusProtocolError::IncorrectWriteBlockSize(*byte));
-                                    }
-                                }
-                                2 => self.byte_a = *byte,
-                                3 => self.byte_b = *byte,
-                                4 => self.byte_c = *byte,
-                                n => return Err(SMBusProtocolError::InvalidWriteBound(n)),
-                            },
-                        }
-                    }
-                }
+                bus_state.received_data[bus_state.index as usize] = *byte;
                 bus_state.index += 1;
             }
             I2CEvent::RequestedByte { byte } => match bus_state.index {
@@ -215,12 +166,55 @@ impl State {
                             }
                         }
                     }
+                } else {
+                    if let Ok(command) = WriteByteDataCommand::try_from(bus_state.received_data[0]) {
+                        if bus_state.index != 2 {
+                            return Err(SMBusProtocolError::InvalidWriteBound(bus_state.index));
+                        }
+                        match command {
+                            WriteByteDataCommand::SetByteA => {
+                                self.byte_a = bus_state.received_data[1];
+                            }
+                            WriteByteDataCommand::SetByteB => {
+                                self.byte_b = bus_state.received_data[1];
+                            }
+                            WriteByteDataCommand::SetByteC => {
+                                self.byte_c = bus_state.received_data[1];
+                            }
+                        }
+                    } else if let Ok(command) =
+                    WriteWordDataCommand::try_from(bus_state.received_data[0]) {
+                        if bus_state.index != 3 {
+                            return Err(SMBusProtocolError::InvalidWriteBound(bus_state.index));
+                        }
+                        match command {
+                            WriteWordDataCommand::SetWordAB => {
+                                self.byte_a = bus_state.received_data[1];
+                                self.byte_b = bus_state.received_data[2];
+                            },
+                        }
+                    } else if let Ok(command) =
+                    WriteBlockDataCommand::try_from(bus_state.received_data[0]) {
+                        match command {
+                            WriteBlockDataCommand::SetBlockABC => {
+                                if bus_state.received_data[1] != 3 {
+                                    return Err(SMBusProtocolError::InvalidWriteBlockSize(bus_state.received_data[1]));
+                                }
+                                if bus_state.index != 5 {
+                                    return Err(SMBusProtocolError::InvalidWriteBound(bus_state.index - 2));
+                                }
+                                self.byte_a = bus_state.received_data[2];
+                                self.byte_b = bus_state.received_data[3];
+                                self.byte_c = bus_state.received_data[4];
+                            }
+                        }
+                    }
                 }
                 bus_state.received_data.iter_mut().for_each(|x| *x = 0);
                 bus_state.index = 0;
                 bus_state.direction = None;
             }
-        };
+        }
         return Ok(());
     }
 }
