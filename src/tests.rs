@@ -7,10 +7,6 @@ struct Thing {
 }
 
 impl CommandHandler for Thing {
-    fn read_byte_supported(&self) -> bool {
-        true
-    }
-
     fn handle_read_byte(&self) -> Option<u8> {
         Some(self.byte_a)
     }
@@ -40,10 +36,6 @@ impl CommandHandler for Thing {
 
     fn handle_read_block_data(&self, reg: u8, index: u8) -> Option<u8> {
         unimplemented!()
-    }
-
-    fn write_byte_supported(&self) -> bool {
-        true
     }
 
     fn handle_write_byte(&mut self, data: u8) -> Result<(), ()> {
