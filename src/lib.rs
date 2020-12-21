@@ -139,6 +139,7 @@ pub enum Direction {
     SlaveToMaster,
 }
 
+#[derive(Debug)]
 pub enum I2CEvent<'a> {
     Initiated { direction: Direction },
     ReceivedByte { byte: u8 },
