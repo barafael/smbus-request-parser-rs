@@ -15,7 +15,7 @@ pub trait CommandHandler {
     fn handle_write_byte(&mut self, data: u8) -> Result<(), ()>;
     fn handle_write_byte_data(&mut self, reg: u8, data: u8) -> Result<(), ()>;
     fn handle_write_word_data(&mut self, reg: u8, data: u16) -> Result<(), ()>;
-    fn handle_write_block_data(&mut self, reg: u8, count: u8, block: [u8; 32]) -> Result<(), ()>;
+    fn handle_write_block_data(&mut self, reg: u8, count: u8, block: &[u8]) -> Result<(), ()>;
 
     fn handle_i2c_event(
         &mut self,
@@ -68,15 +68,18 @@ pub trait CommandHandler {
                                 **byte = (data >> 8) as u8;
                                 bus_state.current_transfer = None;
                             }
-                            Some(StatefulTransfer::ReadBlock(count)) => {
-                                self.handle_read_block_data(first_byte, 1);
+                            Some(StatefulTransfer::ReadBlock(_)) => {
+                                if let Some(data) = self.handle_read_block_data(first_byte, 1) {
+                                    **byte = data;
+                                } else {
+                                    return Err(SMBusProtocolError::InvalidReadBound(1));
+                                }
                             }
                             _ => return Err(SMBusProtocolError::InvalidReadBound(2)),
                         }
                     }
                     n => {
-                        if let Some(StatefulTransfer::ReadBlock(count)) = bus_state.current_transfer
-                        {
+                        if let Some(StatefulTransfer::ReadBlock(_)) = bus_state.current_transfer {
                             if let Some(data) =
                                 self.handle_read_block_data(bus_state.received_data[0], n - 1)
                             {
@@ -119,7 +122,12 @@ pub trait CommandHandler {
                         }
                         4..=32 => {
                             // TODO increase buffer size to accommodate actual 32byte block transfers (right now register and block take a byte each)
+                            let reg = bus_state.received_data[0];
                             let count = bus_state.received_data[1];
+                            let slice = &bus_state.received_data[2usize..=count as usize + 2];
+                            if let Err(()) = self.handle_write_block_data(reg, count, slice) {
+                                return Err(SMBusProtocolError::InvalidWriteBound(count));
+                            }
                         }
                         _ => unreachable!(),
                     };
@@ -151,9 +159,6 @@ pub enum I2CEvent<'a> {
 enum StatefulTransfer {
     ReadWord(u16),
     ReadBlock(u8),
-
-    WriteWord(u16),
-    WriteBlock(u8, [u8; 32]),
 }
 
 #[derive(Default, Debug)]

@@ -25,17 +25,36 @@ impl CommandHandler for Thing {
             7 => {
                 let data = self.byte_a as u16 | (self.byte_b as u16) << 8;
                 Some(data)
-            },
+            }
             8 => {
                 let data = self.byte_b as u16 | (self.byte_c as u16) << 8;
                 Some(data)
-            },
+            }
             _ => None,
         }
     }
 
     fn handle_read_block_data(&self, reg: u8, index: u8) -> Option<u8> {
-        unimplemented!()
+        match reg {
+            11 => match index {
+                0 => Some(6),
+                1 => Some(1),
+                2 => Some(2),
+                3 => Some(3),
+                4 => Some(4),
+                5 => Some(5),
+                6 => Some(6),
+                _ => None,
+            },
+            12 => match index {
+                0 => Some(3),
+                1 => Some(1),
+                2 => Some(2),
+                3 => Some(3),
+                _ => None,
+            },
+            _ => None,
+        }
     }
 
     fn handle_write_byte(&mut self, data: u8) -> Result<(), ()> {
@@ -48,16 +67,16 @@ impl CommandHandler for Thing {
             4 => {
                 self.byte_a = data;
                 Ok(())
-            },
+            }
             5 => {
                 self.byte_b = data;
                 Ok(())
-            },
+            }
             6 => {
                 self.byte_c = data;
                 Ok(())
             }
-            _ => Err(())
+            _ => Err(()),
         }
     }
 
@@ -69,20 +88,30 @@ impl CommandHandler for Thing {
                 self.byte_a = data1;
                 self.byte_b = data2;
                 Ok(())
-            },
+            }
             10 => {
                 let data1 = data as u8;
                 let data2 = (data >> 8) as u8;
                 self.byte_b = data1;
                 self.byte_c = data2;
                 Ok(())
-            },
+            }
             _ => Err(()),
         }
     }
 
-    fn handle_write_block_data(&mut self, reg: u8, count: u8, block: [u8; 32]) -> Result<(), ()> {
-        unimplemented!()
+    fn handle_write_block_data(&mut self, reg: u8, count: u8, block: &[u8]) -> Result<(), ()> {
+        match reg {
+            13 => {
+                if count != 10 {
+                    return Err(());
+                }
+                let sum = block.iter().take(10).sum();
+                self.byte_a = sum;
+                return Ok(());
+            },
+            _ => return Err(()),
+        }
     }
 }
 
@@ -192,7 +221,9 @@ fn test_read_word_data() {
     event = I2CEvent::ReceivedByte { byte: 8 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Initiated { direction: Direction::SlaveToMaster };
+    event = I2CEvent::Initiated {
+        direction: Direction::SlaveToMaster,
+    };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut data1 = 0;
@@ -208,6 +239,68 @@ fn test_read_word_data() {
 
     assert_eq!(0x0a, data1);
     assert_eq!(0x0b, data2);
+}
+
+#[test]
+fn test_read_block_data() {
+    let mut thing = Thing {
+        byte_a: 0x76,
+        byte_b: 0x0a,
+        byte_c: 0x0b,
+    };
+    let mut bus_state = SMBusState::default();
+
+    let mut event = I2CEvent::Initiated {
+        direction: Direction::MasterToSlave,
+    };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::ReceivedByte { byte: 11 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::Initiated {
+        direction: Direction::SlaveToMaster,
+    };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    let mut size = 0;
+    event = I2CEvent::RequestedByte { byte: &mut size };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    let mut data1 = 0;
+    event = I2CEvent::RequestedByte { byte: &mut data1 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    let mut data2 = 0;
+    event = I2CEvent::RequestedByte { byte: &mut data2 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    let mut data3 = 0;
+    event = I2CEvent::RequestedByte { byte: &mut data3 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    let mut data4 = 0;
+    event = I2CEvent::RequestedByte { byte: &mut data4 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    let mut data5 = 0;
+    event = I2CEvent::RequestedByte { byte: &mut data5 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    let mut data6 = 0;
+    event = I2CEvent::RequestedByte { byte: &mut data6 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::Stopped;
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    assert_eq!(size, 6);
+    assert_eq!(data2, 2);
+    assert_eq!(data3, 3);
+    assert_eq!(data4, 4);
+    assert_eq!(data5, 5);
+    assert_eq!(data6, 6);
+    assert_eq!(data1, 1);
 }
 
 #[test]
@@ -264,4 +357,42 @@ fn test_write_word_data() {
     assert_eq!(0x76, thing.byte_b);
     assert_eq!(0x76, thing.byte_a);
     assert_eq!(0x0b, thing.byte_c);
+}
+
+#[test]
+fn test_write_block_data() {
+    let mut thing = Thing {
+        byte_a: 0x76,
+        byte_b: 0x0a,
+        byte_c: 0x0b,
+    };
+    let mut bus_state = SMBusState::default();
+
+    let mut event = I2CEvent::Initiated {
+        direction: Direction::MasterToSlave,
+    };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::ReceivedByte { byte: 13 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::ReceivedByte { byte: 10 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::ReceivedByte { byte: 2 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::Stopped;
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    assert_eq!(20, thing.byte_a);
 }
