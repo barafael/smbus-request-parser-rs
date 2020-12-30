@@ -129,7 +129,7 @@ pub trait CommandHandler {
                                 return Err(SMBusProtocolError::InvalidWriteBound(count));
                             }
                         }
-                        _ => unreachable!(),
+                        n => return Err(SMBusProtocolError::InvalidWriteBound(n))
                     };
                 }
                 bus_state.received_data.iter_mut().for_each(|x| *x = 0);
