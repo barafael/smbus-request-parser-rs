@@ -48,22 +48,24 @@ pub trait CommandHandler {
                         }
                     }
                     1 => {
-                        let first_byte = bus_state.received_data[0];
-                        if let Some(data) = self.handle_read_byte_data(first_byte) {
+                        let register = bus_state.received_data[0];
+                        if let Some(data) = self.handle_read_byte_data(register) {
+                            bus_state.current_transfer = Some(StatefulTransfer::ReadByte(data));
                             **byte = data;
-                        } else if let Some(data) = self.handle_read_word_data(first_byte) {
+                        } else if let Some(data) = self.handle_read_word_data(register) {
                             bus_state.current_transfer = Some(StatefulTransfer::ReadWord(data));
                             **byte = data as u8;
-                        } else if let Some(data) = self.handle_read_block_data(first_byte, 0) {
+                        } else if let Some(data) = self.handle_read_block_data(register, 0) {
                             bus_state.current_transfer = Some(StatefulTransfer::ReadBlock(data));
                             **byte = data;
                         } else {
-                            return Err(SMBusProtocolError::InvalidReadRegister(first_byte));
+                            return Err(SMBusProtocolError::InvalidReadRegister(register));
                         }
                     }
                     2 => {
                         let first_byte = bus_state.received_data[0];
                         match bus_state.current_transfer {
+                            Some(StatefulTransfer::ReadByte(_)) => {},
                             Some(StatefulTransfer::ReadWord(data)) => {
                                 **byte = (data >> 8) as u8;
                                 bus_state.current_transfer = None;
@@ -155,8 +157,9 @@ pub enum I2CEvent<'a> {
     Stopped,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum StatefulTransfer {
+    ReadByte(u8),
     ReadWord(u16),
     ReadBlock(u8),
 }
