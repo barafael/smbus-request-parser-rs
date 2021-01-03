@@ -4,7 +4,6 @@ version = "0.1.1"
 authors = ["Rafael Bachmann <rafael.bachmann.93@gmail.com>"]
 description = "Parse SMBus requests. Register functions to call for each type of write/read request. Agnostic regarding polling, irq, dma usage."
 readme = "README.md"
-license-file = "LICENSE"
 license = "MIT License"
 repository = "https://github.com/barafael/smbus-request-parser"
 edition = "2018"
