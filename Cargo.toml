@@ -1,5 +1,5 @@
 [package]
-name = "smbus-slave-state-machine"
+name = "smbus-request-parser"
 version = "0.1.0"
 authors = ["Rafael Bachmann <mediumendian@gmail.com>"]
 edition = "2018"
