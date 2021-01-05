@@ -53,6 +53,12 @@ impl CommandHandler for Thing {
                 3 => Some(3),
                 _ => None,
             },
+            14 => match index {
+                0 => Some(32),
+                1..=32 => Some(index),
+                _ => None
+            }
+
             _ => None,
         }
     }
@@ -110,6 +116,15 @@ impl CommandHandler for Thing {
                 self.byte_a = sum;
                 return Ok(());
             },
+            15 => {
+                if count != 32 {
+                    return Err(());
+                }
+                for (i, v) in block.iter().enumerate() {
+                    assert_eq!(i, *v as usize);
+                }
+                Ok(())
+            }
             _ => return Err(()),
         }
     }
@@ -304,6 +319,50 @@ fn test_read_block_data() {
 }
 
 #[test]
+fn test_read_block_data_32() {
+    let mut thing = Thing {
+        byte_a: 0x76,
+        byte_b: 0x0a,
+        byte_c: 0x0b,
+    };
+    let mut bus_state = SMBusState::default();
+
+    let mut event = I2CEvent::Initiated {
+        direction: Direction::MasterToSlave,
+    };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::ReceivedByte { byte: 14 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::Initiated {
+        direction: Direction::SlaveToMaster,
+    };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    let mut size = 0;
+    event = I2CEvent::RequestedByte { byte: &mut size };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    let mut block = [0; 32];
+    for v in block.iter_mut() {
+        let mut data = 0;
+        event = I2CEvent::RequestedByte { byte: &mut data };
+        thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+        *v = data;
+    }
+    std::dbg!(&block);
+
+    event = I2CEvent::Stopped;
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    assert_eq!(size, 32);
+    for (i, v) in block.iter().enumerate() {
+        assert_eq!(i, *v as usize - 1);
+    }
+}
+
+#[test]
 fn test_write_byte_data() {
     let mut thing = Thing {
         byte_a: 0x76,
@@ -395,4 +454,62 @@ fn test_write_block_data() {
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     assert_eq!(20, thing.byte_a);
+}
+
+#[test]
+fn test_write_block_data_32() {
+    let mut thing = Thing {
+        byte_a: 0x76,
+        byte_b: 0x0a,
+        byte_c: 0x0b,
+    };
+    let mut bus_state = SMBusState::default();
+
+    let mut event = I2CEvent::Initiated {
+        direction: Direction::MasterToSlave,
+    };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::ReceivedByte { byte: 15 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::ReceivedByte { byte: 32 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    for v in 0..32 {
+        event = I2CEvent::ReceivedByte { byte: v };
+        thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+    }
+
+    event = I2CEvent::Stopped;
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+}
+
+#[test]
+fn test_write_block_data_35() {
+    let mut thing = Thing {
+        byte_a: 0x76,
+        byte_b: 0x0a,
+        byte_c: 0x0b,
+    };
+    let mut bus_state = SMBusState::default();
+
+    let mut event = I2CEvent::Initiated {
+        direction: Direction::MasterToSlave,
+    };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::ReceivedByte { byte: 15 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    event = I2CEvent::ReceivedByte { byte: 35 };
+    thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+
+    for v in 0..32 {
+        event = I2CEvent::ReceivedByte { byte: v };
+        thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
+    }
+    event = I2CEvent::ReceivedByte { byte: 0xde };
+    let error = thing.handle_i2c_event(&mut event, &mut bus_state);
+    assert_eq!(Err(SMBusProtocolError::InvalidWriteBound(32)), error);
 }

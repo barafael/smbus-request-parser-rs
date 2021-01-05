@@ -20,16 +20,18 @@ pub trait CommandHandler {
     fn handle_i2c_event(
         &mut self,
         event: &mut I2CEvent,
-        bus_state: &mut SMBusState,
+        mut bus_state: &mut SMBusState,
     ) -> Result<(), SMBusProtocolError> {
         match event {
             I2CEvent::Initiated { direction } => bus_state.direction = Some(*direction),
             I2CEvent::ReceivedByte { byte } => {
+                if bus_state.index >= RECEIVE_BUFFER_SIZE {
+                    let err = Err(SMBusProtocolError::InvalidWriteBound(bus_state.index - 2));
+                    *bus_state = SMBusState::default();
+                    return err;
+                }
                 bus_state.received_data[bus_state.index as usize] = *byte;
                 bus_state.index += 1;
-                if bus_state.index == 35 {
-                    return Err(SMBusProtocolError::UnsupportedBlockLength);
-                }
             }
             I2CEvent::RequestedByte { byte } => {
                 if bus_state.direction != Some(Direction::SlaveToMaster) {
@@ -122,11 +124,13 @@ pub trait CommandHandler {
                                 ));
                             };
                         }
-                        4..=32 => {
-                            // TODO increase buffer size to accommodate actual 32byte block transfers (right now register and block take a byte each)
+                        4..=RECEIVE_BUFFER_SIZE => {
                             let reg = bus_state.received_data[0];
                             let count = bus_state.received_data[1];
-                            let slice = &bus_state.received_data[2usize..=count as usize + 2];
+                            if count > 32 {
+                                return Err(SMBusProtocolError::InvalidWriteBlockSize(count));
+                            }
+                            let slice = &bus_state.received_data[2usize..count as usize + 2];
                             if let Err(()) = self.handle_write_block_data(reg, count, slice) {
                                 return Err(SMBusProtocolError::InvalidWriteBound(count));
                             }
@@ -164,19 +168,32 @@ enum StatefulTransfer {
     ReadBlock(u8),
 }
 
-#[derive(Default, Debug)]
+const RECEIVE_BUFFER_SIZE: u8 = 34;
+
+#[derive(Debug)]
 pub struct SMBusState {
     index: u8,
-    received_data: [u8; 32],
+    received_data: [u8; RECEIVE_BUFFER_SIZE as usize],
     direction: Option<Direction>,
     current_transfer: Option<StatefulTransfer>,
+}
+
+impl Default for SMBusState {
+    fn default() -> Self {
+        Self {
+            index: 0,
+            received_data: [0; RECEIVE_BUFFER_SIZE as usize],
+            direction: None,
+            current_transfer: None,
+        }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum SMBusProtocolError {
     WrongDirection(Option<Direction>),
     QuickCommandUnsupported,
-    UnsupportedBlockLength,
+    UnsupportedBlockLength(u8),
     ReadByteUnsupported,
     WriteByteUnsupported,
     InvalidWriteBound(u8),
