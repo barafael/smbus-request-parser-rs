@@ -1,6 +1,6 @@
 [package]
 name = "smbus-request-parser"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Rafael Bachmann <rafael.bachmann.93@gmail.com>"]
 description = "Parse SMBus requests. Register functions to call for each type of write/read request. Agnostic regarding polling, irq, dma usage."
 readme = "README.md"
