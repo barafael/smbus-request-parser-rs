@@ -7,15 +7,22 @@ extern crate std;
 mod tests;
 
 pub trait CommandHandler {
+    type Error;
+
     fn handle_read_byte(&self) -> Option<u8>;
     fn handle_read_byte_data(&self, reg: u8) -> Option<u8>;
     fn handle_read_word_data(&self, reg: u8) -> Option<u16>;
     fn handle_read_block_data(&self, reg: u8, index: u8) -> Option<u8>;
 
-    fn handle_write_byte(&mut self, data: u8) -> Result<(), ()>;
-    fn handle_write_byte_data(&mut self, reg: u8, data: u8) -> Result<(), ()>;
-    fn handle_write_word_data(&mut self, reg: u8, data: u16) -> Result<(), ()>;
-    fn handle_write_block_data(&mut self, reg: u8, count: u8, block: &[u8]) -> Result<(), ()>;
+    fn handle_write_byte(&mut self, data: u8) -> Result<(), Self::Error>;
+    fn handle_write_byte_data(&mut self, reg: u8, data: u8) -> Result<(), Self::Error>;
+    fn handle_write_word_data(&mut self, reg: u8, data: u16) -> Result<(), Self::Error>;
+    fn handle_write_block_data(
+        &mut self,
+        reg: u8,
+        count: u8,
+        block: &[u8],
+    ) -> Result<(), Self::Error>;
 
     fn handle_i2c_event(
         &mut self,
@@ -39,7 +46,7 @@ pub trait CommandHandler {
                 }
                 match bus_state.index {
                     0 => {
-                        if let Some(Direction::SlaveToMaster) = bus_state.direction {
+                        if bus_state.direction == Some(Direction::SlaveToMaster) {
                             if let Some(data) = self.handle_read_byte() {
                                 **byte = data;
                             } else {
@@ -52,13 +59,13 @@ pub trait CommandHandler {
                     1 => {
                         let register = bus_state.received_data[0];
                         if let Some(data) = self.handle_read_byte_data(register) {
-                            bus_state.current_transfer = Some(StatefulTransfer::ReadByte(data));
+                            bus_state.current_transfer = Some(StatefulTransfer::Byte(data));
                             **byte = data;
                         } else if let Some(data) = self.handle_read_word_data(register) {
-                            bus_state.current_transfer = Some(StatefulTransfer::ReadWord(data));
+                            bus_state.current_transfer = Some(StatefulTransfer::Word(data));
                             **byte = data as u8;
                         } else if let Some(data) = self.handle_read_block_data(register, 0) {
-                            bus_state.current_transfer = Some(StatefulTransfer::ReadBlock(data));
+                            bus_state.current_transfer = Some(StatefulTransfer::Block(data));
                             **byte = data;
                         } else {
                             return Err(SMBusProtocolError::InvalidReadRegister(register));
@@ -67,12 +74,12 @@ pub trait CommandHandler {
                     2 => {
                         let first_byte = bus_state.received_data[0];
                         match bus_state.current_transfer {
-                            Some(StatefulTransfer::ReadByte(_)) => {},
-                            Some(StatefulTransfer::ReadWord(data)) => {
+                            Some(StatefulTransfer::Byte(_)) => {}
+                            Some(StatefulTransfer::Word(data)) => {
                                 **byte = (data >> 8) as u8;
                                 bus_state.current_transfer = None;
                             }
-                            Some(StatefulTransfer::ReadBlock(_)) => {
+                            Some(StatefulTransfer::Block(_)) => {
                                 if let Some(data) = self.handle_read_block_data(first_byte, 1) {
                                     **byte = data;
                                 } else {
@@ -83,7 +90,7 @@ pub trait CommandHandler {
                         }
                     }
                     n => {
-                        if let Some(StatefulTransfer::ReadBlock(_)) = bus_state.current_transfer {
+                        if let Some(StatefulTransfer::Block(_)) = bus_state.current_transfer {
                             if let Some(data) =
                                 self.handle_read_block_data(bus_state.received_data[0], n - 1)
                             {
@@ -99,12 +106,12 @@ pub trait CommandHandler {
                     match bus_state.index {
                         0 => return Err(SMBusProtocolError::QuickCommandUnsupported),
                         1 => {
-                            if let Err(()) = self.handle_write_byte(bus_state.received_data[0]) {
+                            if let Err(_e) = self.handle_write_byte(bus_state.received_data[0]) {
                                 return Err(SMBusProtocolError::WriteByteUnsupported);
                             }
                         }
                         2 => {
-                            if let Err(()) = self.handle_write_byte_data(
+                            if let Err(_e) = self.handle_write_byte_data(
                                 bus_state.received_data[0],
                                 bus_state.received_data[1],
                             ) {
@@ -116,7 +123,7 @@ pub trait CommandHandler {
                         3 => {
                             let data: u16 = bus_state.received_data[1] as u16
                                 | (bus_state.received_data[2] as u16) << 8;
-                            if let Err(()) =
+                            if let Err(_e) =
                                 self.handle_write_word_data(bus_state.received_data[0], data)
                             {
                                 return Err(SMBusProtocolError::InvalidWriteRegister(
@@ -131,11 +138,11 @@ pub trait CommandHandler {
                                 return Err(SMBusProtocolError::InvalidWriteBlockSize(count));
                             }
                             let slice = &bus_state.received_data[2usize..count as usize + 2];
-                            if let Err(()) = self.handle_write_block_data(reg, count, slice) {
+                            if let Err(_e) = self.handle_write_block_data(reg, count, slice) {
                                 return Err(SMBusProtocolError::InvalidWriteBound(count));
                             }
                         }
-                        n => return Err(SMBusProtocolError::InvalidWriteBound(n))
+                        n => return Err(SMBusProtocolError::InvalidWriteBound(n)),
                     };
                 }
                 bus_state.received_data.iter_mut().for_each(|x| *x = 0);
@@ -143,7 +150,7 @@ pub trait CommandHandler {
                 bus_state.direction = None;
             }
         }
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -163,9 +170,9 @@ pub enum I2CEvent<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 enum StatefulTransfer {
-    ReadByte(u8),
-    ReadWord(u16),
-    ReadBlock(u8),
+    Byte(u8),
+    Word(u16),
+    Block(u8),
 }
 
 const RECEIVE_BUFFER_SIZE: u8 = 34;

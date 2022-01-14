@@ -7,6 +7,8 @@ struct Thing {
 }
 
 impl CommandHandler for Thing {
+    type Error = ();
+
     fn handle_read_byte(&self) -> Option<u8> {
         Some(self.byte_a)
     }
@@ -56,8 +58,8 @@ impl CommandHandler for Thing {
             14 => match index {
                 0 => Some(32),
                 1..=32 => Some(index),
-                _ => None
-            }
+                _ => None,
+            },
 
             _ => None,
         }
@@ -115,7 +117,7 @@ impl CommandHandler for Thing {
                 let sum = block.iter().take(10).sum();
                 self.byte_a = sum;
                 return Ok(());
-            },
+            }
             15 => {
                 if count != 32 {
                     return Err(());
