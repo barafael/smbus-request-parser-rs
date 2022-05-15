@@ -6,6 +6,6 @@ description = "Parse SMBus requests. Register functions to call for each type of
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/barafael/smbus-request-parser-rs"
-edition = "2018"
+edition = "2021"
 keywords = ["smbus", "i2c"]
 categories = ["embedded"]

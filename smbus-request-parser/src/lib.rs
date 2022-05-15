@@ -1,10 +1,7 @@
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 
 #[cfg(test)]
-extern crate std;
-
-#[cfg(test)]
-mod tests;
+mod test;
 
 pub trait CommandHandler {
     type Error;
@@ -26,12 +23,12 @@ pub trait CommandHandler {
 
     fn handle_i2c_event(
         &mut self,
-        event: &mut I2CEvent,
+        event: &mut I2cEvent,
         mut bus_state: &mut SMBusState,
     ) -> Result<(), SMBusProtocolError> {
         match event {
-            I2CEvent::Initiated { direction } => bus_state.direction = Some(*direction),
-            I2CEvent::ReceivedByte { byte } => {
+            I2cEvent::Initiated { direction } => bus_state.direction = Some(*direction),
+            I2cEvent::ReceivedByte { byte } => {
                 if bus_state.index >= RECEIVE_BUFFER_SIZE {
                     let err = Err(SMBusProtocolError::InvalidWriteBound(bus_state.index - 2));
                     *bus_state = SMBusState::default();
@@ -40,7 +37,7 @@ pub trait CommandHandler {
                 bus_state.received_data[bus_state.index as usize] = *byte;
                 bus_state.index += 1;
             }
-            I2CEvent::RequestedByte { byte } => {
+            I2cEvent::RequestedByte { byte } => {
                 if bus_state.direction != Some(Direction::SlaveToMaster) {
                     return Err(SMBusProtocolError::WrongDirection(bus_state.direction));
                 }
@@ -101,7 +98,7 @@ pub trait CommandHandler {
                 }
                 bus_state.index += 1;
             }
-            I2CEvent::Stopped => {
+            I2cEvent::Stopped => {
                 if bus_state.direction == Some(Direction::MasterToSlave) {
                     match bus_state.index {
                         0 => return Err(SMBusProtocolError::QuickCommandUnsupported),
@@ -161,7 +158,7 @@ pub enum Direction {
 }
 
 #[derive(Debug)]
-pub enum I2CEvent<'a> {
+pub enum I2cEvent<'a> {
     Initiated { direction: Direction },
     ReceivedByte { byte: u8 },
     RequestedByte { byte: &'a mut u8 },

@@ -141,16 +141,16 @@ fn test_read_byte() {
     };
     let mut bus_state = SMBusState::default();
 
-    let mut event = I2CEvent::Initiated {
+    let mut event = I2cEvent::Initiated {
         direction: Direction::SlaveToMaster,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut data = 0;
-    event = I2CEvent::RequestedByte { byte: &mut data };
+    event = I2cEvent::RequestedByte { byte: &mut data };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Stopped;
+    event = I2cEvent::Stopped;
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     assert_eq!(0x42, data);
@@ -168,17 +168,17 @@ fn test_write_byte() {
     };
     let mut bus_state = SMBusState::default();
 
-    let mut event = I2CEvent::Initiated {
+    let mut event = I2cEvent::Initiated {
         direction: Direction::MasterToSlave,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     assert_eq!(0x76, thing.byte_a);
 
-    event = I2CEvent::ReceivedByte { byte: 0x34 };
+    event = I2cEvent::ReceivedByte { byte: 0x34 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Stopped;
+    event = I2cEvent::Stopped;
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     assert_eq!(0x34, thing.byte_a);
@@ -195,24 +195,24 @@ fn test_read_byte_data() {
     };
     let mut bus_state = SMBusState::default();
 
-    let mut event = I2CEvent::Initiated {
+    let mut event = I2cEvent::Initiated {
         direction: Direction::MasterToSlave,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 1 };
+    event = I2cEvent::ReceivedByte { byte: 1 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Initiated {
+    event = I2cEvent::Initiated {
         direction: Direction::SlaveToMaster,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut data = 0;
-    event = I2CEvent::RequestedByte { byte: &mut data };
+    event = I2cEvent::RequestedByte { byte: &mut data };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Stopped;
+    event = I2cEvent::Stopped;
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     assert_eq!(0x76, data);
@@ -230,28 +230,28 @@ fn test_read_word_data() {
     };
     let mut bus_state = SMBusState::default();
 
-    let mut event = I2CEvent::Initiated {
+    let mut event = I2cEvent::Initiated {
         direction: Direction::MasterToSlave,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 8 };
+    event = I2cEvent::ReceivedByte { byte: 8 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Initiated {
+    event = I2cEvent::Initiated {
         direction: Direction::SlaveToMaster,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut data1 = 0;
-    event = I2CEvent::RequestedByte { byte: &mut data1 };
+    event = I2cEvent::RequestedByte { byte: &mut data1 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut data2 = 0;
-    event = I2CEvent::RequestedByte { byte: &mut data2 };
+    event = I2cEvent::RequestedByte { byte: &mut data2 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Stopped;
+    event = I2cEvent::Stopped;
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     assert_eq!(0x0a, data1);
@@ -267,48 +267,48 @@ fn test_read_block_data() {
     };
     let mut bus_state = SMBusState::default();
 
-    let mut event = I2CEvent::Initiated {
+    let mut event = I2cEvent::Initiated {
         direction: Direction::MasterToSlave,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 11 };
+    event = I2cEvent::ReceivedByte { byte: 11 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Initiated {
+    event = I2cEvent::Initiated {
         direction: Direction::SlaveToMaster,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut size = 0;
-    event = I2CEvent::RequestedByte { byte: &mut size };
+    event = I2cEvent::RequestedByte { byte: &mut size };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut data1 = 0;
-    event = I2CEvent::RequestedByte { byte: &mut data1 };
+    event = I2cEvent::RequestedByte { byte: &mut data1 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut data2 = 0;
-    event = I2CEvent::RequestedByte { byte: &mut data2 };
+    event = I2cEvent::RequestedByte { byte: &mut data2 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut data3 = 0;
-    event = I2CEvent::RequestedByte { byte: &mut data3 };
+    event = I2cEvent::RequestedByte { byte: &mut data3 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut data4 = 0;
-    event = I2CEvent::RequestedByte { byte: &mut data4 };
+    event = I2cEvent::RequestedByte { byte: &mut data4 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut data5 = 0;
-    event = I2CEvent::RequestedByte { byte: &mut data5 };
+    event = I2cEvent::RequestedByte { byte: &mut data5 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut data6 = 0;
-    event = I2CEvent::RequestedByte { byte: &mut data6 };
+    event = I2cEvent::RequestedByte { byte: &mut data6 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Stopped;
+    event = I2cEvent::Stopped;
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     assert_eq!(size, 6);
@@ -329,33 +329,33 @@ fn test_read_block_data_32() {
     };
     let mut bus_state = SMBusState::default();
 
-    let mut event = I2CEvent::Initiated {
+    let mut event = I2cEvent::Initiated {
         direction: Direction::MasterToSlave,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 14 };
+    event = I2cEvent::ReceivedByte { byte: 14 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Initiated {
+    event = I2cEvent::Initiated {
         direction: Direction::SlaveToMaster,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut size = 0;
-    event = I2CEvent::RequestedByte { byte: &mut size };
+    event = I2cEvent::RequestedByte { byte: &mut size };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     let mut block = [0; 32];
     for v in block.iter_mut() {
         let mut data = 0;
-        event = I2CEvent::RequestedByte { byte: &mut data };
+        event = I2cEvent::RequestedByte { byte: &mut data };
         thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
         *v = data;
     }
     std::dbg!(&block);
 
-    event = I2CEvent::Stopped;
+    event = I2cEvent::Stopped;
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     assert_eq!(size, 32);
@@ -373,18 +373,18 @@ fn test_write_byte_data() {
     };
     let mut bus_state = SMBusState::default();
 
-    let mut event = I2CEvent::Initiated {
+    let mut event = I2cEvent::Initiated {
         direction: Direction::MasterToSlave,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 5 };
+    event = I2cEvent::ReceivedByte { byte: 5 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 0x76 };
+    event = I2cEvent::ReceivedByte { byte: 0x76 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Stopped;
+    event = I2cEvent::Stopped;
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     assert_eq!(0x76, thing.byte_b);
@@ -401,18 +401,18 @@ fn test_write_word_data() {
     };
     let mut bus_state = SMBusState::default();
 
-    let mut event = I2CEvent::Initiated {
+    let mut event = I2cEvent::Initiated {
         direction: Direction::MasterToSlave,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 5 };
+    event = I2cEvent::ReceivedByte { byte: 5 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 0x76 };
+    event = I2cEvent::ReceivedByte { byte: 0x76 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Stopped;
+    event = I2cEvent::Stopped;
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     assert_eq!(0x76, thing.byte_b);
@@ -429,18 +429,18 @@ fn test_write_block_data() {
     };
     let mut bus_state = SMBusState::default();
 
-    let mut event = I2CEvent::Initiated {
+    let mut event = I2cEvent::Initiated {
         direction: Direction::MasterToSlave,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 13 };
+    event = I2cEvent::ReceivedByte { byte: 13 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 10 };
+    event = I2cEvent::ReceivedByte { byte: 10 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 2 };
+    event = I2cEvent::ReceivedByte { byte: 2 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
@@ -452,7 +452,7 @@ fn test_write_block_data() {
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::Stopped;
+    event = I2cEvent::Stopped;
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     assert_eq!(20, thing.byte_a);
@@ -467,23 +467,23 @@ fn test_write_block_data_32() {
     };
     let mut bus_state = SMBusState::default();
 
-    let mut event = I2CEvent::Initiated {
+    let mut event = I2cEvent::Initiated {
         direction: Direction::MasterToSlave,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 15 };
+    event = I2cEvent::ReceivedByte { byte: 15 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 32 };
+    event = I2cEvent::ReceivedByte { byte: 32 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     for v in 0..32 {
-        event = I2CEvent::ReceivedByte { byte: v };
+        event = I2cEvent::ReceivedByte { byte: v };
         thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
     }
 
-    event = I2CEvent::Stopped;
+    event = I2cEvent::Stopped;
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 }
 
@@ -496,22 +496,22 @@ fn test_write_block_data_35() {
     };
     let mut bus_state = SMBusState::default();
 
-    let mut event = I2CEvent::Initiated {
+    let mut event = I2cEvent::Initiated {
         direction: Direction::MasterToSlave,
     };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 15 };
+    event = I2cEvent::ReceivedByte { byte: 15 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
-    event = I2CEvent::ReceivedByte { byte: 35 };
+    event = I2cEvent::ReceivedByte { byte: 35 };
     thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
 
     for v in 0..32 {
-        event = I2CEvent::ReceivedByte { byte: v };
+        event = I2cEvent::ReceivedByte { byte: v };
         thing.handle_i2c_event(&mut event, &mut bus_state).unwrap();
     }
-    event = I2CEvent::ReceivedByte { byte: 0xde };
+    event = I2cEvent::ReceivedByte { byte: 0xde };
     let error = thing.handle_i2c_event(&mut event, &mut bus_state);
     assert_eq!(Err(SMBusProtocolError::InvalidWriteBound(32)), error);
 }
