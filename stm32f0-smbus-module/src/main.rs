@@ -158,7 +158,7 @@ const APP: () = {
                     .modify(|r, w| unsafe { w.bits(r.bits() | 1) });
 
                 ctx.resources.i2c.cr1.modify(|_, w| w.txie().set_bit());
-                let mut address_match_event = I2CEvent::Initiated {
+                let mut address_match_event = I2cEvent::Initiated {
                     direction: Direction::SlaveToMaster,
                 };
                 if let Err(protocol_error) = ctx
@@ -170,7 +170,7 @@ const APP: () = {
                 }
                 rprintln!("{:?}", address_match_event);
             } else {
-                let mut address_match_event = I2CEvent::Initiated {
+                let mut address_match_event = I2cEvent::Initiated {
                     direction: Direction::MasterToSlave,
                 };
                 if let Err(protocol_error) = ctx
@@ -185,7 +185,7 @@ const APP: () = {
         } else if isr_reader.txis().is_empty() {
             ctx.resources.i2c.cr1.modify(|_, w| w.txie().clear_bit());
             let mut byte: u8 = 0;
-            let mut txis_event = I2CEvent::RequestedByte { byte: &mut byte };
+            let mut txis_event = I2cEvent::RequestedByte { byte: &mut byte };
 
             if let Err(protocol_error) = ctx
                 .resources
@@ -205,7 +205,7 @@ const APP: () = {
         if isr_reader.rxne().is_not_empty() {
             let data = ctx.resources.i2c.rxdr.read().rxdata().bits();
 
-            let mut rxne_event = I2CEvent::ReceivedByte { byte: data };
+            let mut rxne_event = I2cEvent::ReceivedByte { byte: data };
             rprintln!("{:x?}", rxne_event);
 
             if let Err(protocol_error) = ctx
@@ -221,7 +221,7 @@ const APP: () = {
         if isr_reader.stopf().is_stop() {
             ctx.resources.i2c.icr.write(|w| w.stopcf().set_bit());
 
-            let mut stop_event = I2CEvent::Stopped;
+            let mut stop_event = I2cEvent::Stopped;
             rprintln!("{:?}", stop_event);
 
             if let Err(protocol_error) = ctx

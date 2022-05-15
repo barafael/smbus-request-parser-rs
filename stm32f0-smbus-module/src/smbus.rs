@@ -12,6 +12,9 @@ pub struct Data {
 }
 
 impl CommandHandler for Data {
+    // TODO better errors (snafu or manual).
+    type Error = ();
+
     fn handle_read_byte(&self) -> Option<u8> {
         Some(self.byte_a)
     }
