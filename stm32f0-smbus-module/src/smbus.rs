@@ -58,9 +58,9 @@ impl CommandHandler for Data {
             },
             15 => {
                 if index == 0 {
-                    return Some(self.count as u8);
+                    Some(self.count as u8)
                 } else {
-                    return Some(self.block[index as usize]);
+                    Some(self.block[index as usize])
                 }
             }
             _ => None,
